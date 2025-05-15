@@ -26,6 +26,6 @@ app.use('/api/reponses', reponseRoutes);
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('MongoDB connecté');
-    app.listen(5000, () => console.log('Serveur sur http://localhost:5000'));
+    app.listen(5001, () => console.log('Serveur sur http://localhost:5001'));
   })
   .catch((err) => console.error(err));

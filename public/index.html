@@ -1,32 +1,120 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Test Sondage</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .hidden { display: none; }
+    button.tab {
+      padding: 10px 20px;
+      margin-right: 10px;
+      cursor: pointer;
+      background-color: #eee;
+      border: none;
+      border-bottom: 2px solid transparent;
+      font-weight: bold;
+    }
+    button.tab.active {
+      border-bottom: 2px solid #007bff;
+      background-color: #fff;
+    }
+    input {
+      display: block;
+      margin-bottom: 10px;
+      padding: 8px;
+      width: 250px;
+      font-size: 14px;
+    }
+  </style>
 </head>
 <body>
-  <h1>Login</h1>
-  <input id="email" placeholder="Email" />
-  <input id="password" placeholder="Mot de passe" type="password" />
-  <button onclick="login()">Connexion</button>
+
+  <h1>Bienvenue</h1>
+
+  <div>
+    <button id="btnLogin" class="tab active" onclick="showForm('login')">Connexion</button>
+    <button id="btnRegister" class="tab" onclick="showForm('register')">Créer un compte</button>
+  </div>
+
+  <div id="loginForm">
+    <h2>Connexion</h2>
+    <input id="loginEmail" placeholder="Email" type="email" />
+    <input id="loginPassword" placeholder="Mot de passe" type="password" />
+    <button onclick="login()">Se connecter</button>
+  </div>
+
+  <div id="registerForm" class="hidden">
+    <h2>Créer un compte</h2>
+    <input id="registerEmail" placeholder="Email" type="email" />
+    <input id="registerPassword" placeholder="Mot de passe" type="password" />
+    <input id="registerConfirmPassword" placeholder="Confirmer mot de passe" type="password" />
+    <button onclick="register()">S'inscrire</button>
+  </div>
 
   <script>
+    function showForm(form) {
+      const loginForm = document.getElementById('loginForm');
+      const registerForm = document.getElementById('registerForm');
+      const btnLogin = document.getElementById('btnLogin');
+      const btnRegister = document.getElementById('btnRegister');
+
+      if (form === 'login') {
+        loginForm.classList.remove('hidden');
+        registerForm.classList.add('hidden');
+        btnLogin.classList.add('active');
+        btnRegister.classList.remove('active');
+      } else {
+        loginForm.classList.add('hidden');
+        registerForm.classList.remove('hidden');
+        btnLogin.classList.remove('active');
+        btnRegister.classList.add('active');
+      }
+    }
+
     async function login() {
-      const res = await fetch('http://localhost:5000/api/auth/login', {
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+
+      const res = await fetch('http://localhost:5001/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: document.getElementById('email').value,
-          password: document.getElementById('password').value
-        })
+        body: JSON.stringify({ email, password })
       });
+
       const data = await res.json();
+
       if (data.token) {
         localStorage.setItem('token', data.token);
         alert('Connecté !');
       } else {
-        alert('Erreur');
+        alert('Erreur : ' + (data.message || 'Connexion impossible'));
+      }
+    }
+
+    async function register() {
+      const email = document.getElementById('registerEmail').value;
+      const password = document.getElementById('registerPassword').value;
+      const confirmPassword = document.getElementById('registerConfirmPassword').value;
+
+      if (password !== confirmPassword) {
+        alert('Les mots de passe ne correspondent pas.');
+        return;
+      }
+
+      const res = await fetch('http://localhost:5001/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        alert('Compte créé avec succès ! Tu peux maintenant te connecter.');
+        showForm('login');
+      } else {
+        alert('Erreur : ' + (data.message || 'Inscription impossible'));
       }
     }
   </script>
