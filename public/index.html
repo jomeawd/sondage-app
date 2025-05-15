@@ -1,0 +1,34 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Test Sondage</title>
+</head>
+<body>
+  <h1>Login</h1>
+  <input id="email" placeholder="Email" />
+  <input id="password" placeholder="Mot de passe" type="password" />
+  <button onclick="login()">Connexion</button>
+
+  <script>
+    async function login() {
+      const res = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: document.getElementById('email').value,
+          password: document.getElementById('password').value
+        })
+      });
+      const data = await res.json();
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        alert('Connecté !');
+      } else {
+        alert('Erreur');
+      }
+    }
+  </script>
+</body>
+</html>
