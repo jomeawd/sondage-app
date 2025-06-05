@@ -1,14 +1,10 @@
 const mongoose = require('mongoose');
 
 const reponseSchema = new mongoose.Schema({
-  sondage_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Sondage' },
-  utilisateur_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  reponses: [
-    {
-      question_id: mongoose.Schema.Types.ObjectId,
-      reponse: mongoose.Schema.Types.Mixed
-    }
-  ]
+  sondageId: { type: mongoose.Schema.Types.ObjectId, ref: 'Sondage' },
+  questionId: { type: mongoose.Schema.Types.ObjectId },
+  valeur: String,
+  utilisateur: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 });
 
 module.exports = mongoose.model('Reponse', reponseSchema);

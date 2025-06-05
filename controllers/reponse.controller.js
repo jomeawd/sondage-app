@@ -1,34 +1,24 @@
-const Reponse = require('../models/reponse.model'); // Modèle Mongoose à créer
-const Sondage = require('../models/sondage.model'); // Modèle Sondage pour vérifier existence
+const Reponse = require('../models/reponse.model');
 
-// POST /api/reponses/:id (id = id du sondage)
-async function submitReponse(req, res) {
-  const sondageId = req.params.id;
-  const utilisateurId = req.user._id; // supposé fourni par le middleware auth
-  const { reponses } = req.body; // tableau des réponses [{ question_id, reponse }, ...]
+exports.repondre = async (req, res) => {
+  const { sondageId, reponses } = req.body;
+
+  if (!Array.isArray(reponses) || reponses.length === 0) {
+    return res.status(400).json({ message: 'Aucune réponse fournie' });
+  }
 
   try {
-    // Vérifier que le sondage existe
-    const sondage = await Sondage.findById(sondageId);
-    if (!sondage) {
-      return res.status(404).json({ message: "Sondage introuvable" });
-    }
+    const saved = await Promise.all(reponses.map(rep => {
+      return Reponse.create({
+        sondageId,
+        questionId: rep.questionId,
+        valeur: rep.valeur,
+        utilisateur: req.user.id
+      });
+    }));
 
-    // Créer la réponse dans la BDD
-    const nouvelleReponse = new Reponse({
-      sondage_id: sondageId,
-      utilisateur_id: utilisateurId,
-      reponses: reponses,
-    });
-
-    await nouvelleReponse.save();
-
-    res.status(201).json({ message: "Réponse enregistrée avec succès" });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Erreur serveur" });
+    res.status(201).json({ message: 'Réponses enregistrées', saved });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-}
-
-module.exports = { submitReponse };
-
+};

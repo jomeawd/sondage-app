@@ -43,6 +43,7 @@
     <button onclick="updateSondage()">Sauvegarder</button>
     <button onclick="cancelEdit()">Annuler</button>
   </div>
+  
 
   <script>
     const token = localStorage.getItem('token');
@@ -67,25 +68,34 @@
     }
 
     function renderSondages() {
-      const ul = document.getElementById('sondageList');
-      ul.innerHTML = '';
-      sondages.forEach(s => {
-        const li = document.createElement('li');
-        li.textContent = s.nom || '(Sans titre)';
+        const ul = document.getElementById('sondageList');
+        ul.innerHTML = '';
 
-        const btnEdit = document.createElement('button');
-        btnEdit.textContent = 'Modifier';
-        btnEdit.onclick = () => startEdit(s);
+        sondages.forEach(s => {
+            const li = document.createElement('li');
 
-        const btnDelete = document.createElement('button');
-        btnDelete.textContent = 'Supprimer';
-        btnDelete.onclick = () => deleteSondage(s._id);
+            // Création contenu HTML avec titre et lien
+            li.innerHTML = `
+            <h3>${s.nom || '(Sans titre)'}</h3>
+            <a href="questions.html?id=${s._id}">Voir les questions</a>
+            `;
 
-        li.appendChild(btnEdit);
-        li.appendChild(btnDelete);
-        ul.appendChild(li);
-      });
+            // Bouton modifier
+            const btnEdit = document.createElement('button');
+            btnEdit.textContent = 'Modifier';
+            btnEdit.onclick = () => startEdit(s);
+
+            // Bouton supprimer
+            const btnDelete = document.createElement('button');
+            btnDelete.textContent = 'Supprimer';
+            btnDelete.onclick = () => deleteSondage(s._id);
+
+            li.appendChild(btnEdit);
+            li.appendChild(btnDelete);
+            ul.appendChild(li);
+        });
     }
+
 
     async function addSondage() {
       const titre = document.getElementById('newTitre').value.trim();

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Répondre au sondage</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .question { margin-bottom: 20px; }
+    button { padding: 5px 10px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1 id="sondageTitre">Chargement...</h1>
+  <form id="reponseForm"></form>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const sondageId = urlParams.get('id');
+    const token = localStorage.getItem('token');
+
+    if (!sondageId) {
+      alert('Aucun sondage spécifié');
+      window.location.href = 'sondages.html';
+    }
+
+    async function fetchQuestions() {
+      const res = await fetch(`http://localhost:5001/api/sondages/${sondageId}`);
+      if (!res.ok) {
+        alert('Erreur lors du chargement du sondage');
+        return;
+      }
+      const sondage = await res.json();
+      document.getElementById('sondageTitre').textContent = sondage.nom;
+      const form = document.getElementById('reponseForm');
+
+      sondage.questions.forEach((q, index) => {
+        const div = document.createElement('div');
+        div.className = 'question';
+        div.innerHTML = `<label>${q.intitule}</label><br/>`;
+
+        if (q.type === 'ouverte') {
+          div.innerHTML += `<input type="text" name="q${index}" data-id="${q._id}" />`;
+        } else if (q.type === 'qcm') {
+          q.reponses.forEach(rep => {
+            div.innerHTML += `
+              <label>
+                <input type="radio" name="q${index}" value="${rep}" data-id="${q._id}" />
+                ${rep}
+              </label><br/>
+            `;
+          });
+        }
+
+        form.appendChild(div);
+      });
+
+      const btn = document.createElement('button');
+      btn.textContent = 'Envoyer';
+      btn.type = 'submit';
+      form.appendChild(btn);
+    }
+
+    document.getElementById('reponseForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const inputs = form.querySelectorAll('[data-id]');
+      const reponses = [];
+
+      const addedIds = new Set();
+      inputs.forEach(input => {
+        const questionId = input.getAttribute('data-id');
+        if (!addedIds.has(questionId)) {
+          if ((input.type === 'text' && input.value) || (input.type === 'radio' && input.checked)) {
+            reponses.push({ questionId, valeur: input.value });
+            addedIds.add(questionId);
+          }
+        }
+      });
+
+      try {
+        const res = await fetch('http://localhost:5001/api/reponses', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({ sondageId, reponses })
+        });
+        if (res.ok) {
+          alert('Réponses envoyées avec succès !');
+          window.location.href = 'sondages.html';
+        } else {
+          const data = await res.json();
+          alert(data.message || 'Erreur lors de l\'envoi des réponses');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Erreur réseau');
+      }
+    });
+
+    fetchQuestions();
+  </script>
+</body>
+</html>

@@ -11,6 +11,9 @@ router.get('/public', sondageController.getAllPublicSondages);
 
 router.get('/', auth, sondageController.getAllSondages);
 
+router.get('/:id', sondageController.getSondageById);
+
+
 
 module.exports = router;
 
