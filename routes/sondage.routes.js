@@ -29,40 +29,24 @@ router.get('/:id', async (req, res) => {
   router.put('/:id/questions', async (req, res) => {
     try {
       const { questions } = req.body;
-  
       if (!Array.isArray(questions)) {
-        return res.status(400).json({ message: 'Questions invalides (doivent être un tableau)' });
+        return res.status(400).json({ message: 'Questions invalides' });
       }
-  
-      // Validation simple sur chaque question
-      for (const [i, q] of questions.entries()) {
-        if (!q.text || typeof q.text !== 'string' || q.text.trim() === '') {
-          return res.status(400).json({ message: `La question #${i + 1} doit avoir un texte valide` });
-        }
-        if (!q.type || !['ouverte', 'qcm'].includes(q.type)) {
-          return res.status(400).json({ message: `Type de question invalide pour la question #${i + 1}` });
-        }
-        if (!Array.isArray(q.reponses)) {
-          q.reponses = [];
-        }
-      }
-  
       const sondage = await Sondage.findById(req.params.id);
       if (!sondage) {
         return res.status(404).json({ message: 'Sondage introuvable' });
       }
   
+      console.log('Questions reçues avant sauvegarde:', questions);
       sondage.questions = questions;
-  
-      console.log('Sauvegarde des questions:', questions);
-  
       await sondage.save();
       res.json({ message: 'Questions mises à jour' });
     } catch (err) {
       console.error('Erreur sauvegarde questions:', err);
-      res.status(500).json({ message: 'Erreur serveur', error: err.message });
+      res.status(500).json({ message: 'Erreur serveur', error: err.message, stack: err.stack });
     }
   });
+  
   
   
 

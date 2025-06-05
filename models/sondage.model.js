@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const questionSchema = new mongoose.Schema({
-  texte: { type: String, required: true },
+  text: { type: String, required: true },
   type: { type: String, enum: ['ouverte', 'qcm'] },
   reponses: [String]
 });

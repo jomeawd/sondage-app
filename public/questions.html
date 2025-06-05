@@ -127,7 +127,7 @@
         return;
       }
 
-      questions.push({ texte: text, type });
+      questions.push({ text, type, reponses: [] });
 
       // Envoyer la mise à jour au backend
       await saveQuestions();
