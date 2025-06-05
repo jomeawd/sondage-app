@@ -2,102 +2,209 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Répondre au sondage</title>
+  <title>Gestion des questions</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    .question { margin-bottom: 20px; }
-    button { padding: 5px 10px; margin-top: 20px; }
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 700px; margin: auto; }
+    ul { list-style: none; padding: 0; }
+    li { margin-bottom: 15px; background: #f0f0f0; padding: 10px; border-radius: 5px; }
+    label { display: block; margin: 5px 0 2px; }
+    select, input[type="text"] { width: 100%; padding: 5px; font-size: 14px; }
+    button { margin-top: 5px; cursor: pointer; }
+    .actions { margin-top: 8px; }
+    #editForm { display: none; background: #dff0d8; padding: 10px; border-radius: 5px; margin-bottom: 20px; }
   </style>
 </head>
 <body>
-  <h1 id="sondageTitre">Chargement...</h1>
-  <form id="reponseForm"></form>
+
+  <h1>Questions du sondage</h1>
+  <button onclick="goBack()">Retour aux sondages</button>
+  <button onclick="logout()">Déconnexion</button>
+
+  <h2>Ajouter une question</h2>
+  <div id="addForm">
+    <label for="newQuestionText">Texte de la question :</label>
+    <input type="text" id="newQuestionText" placeholder="Entrez la question" />
+
+    <label for="newQuestionType">Type de réponse :</label>
+    <select id="newQuestionType">
+      <option value="ouverte">Réponse ouverte</option>
+      <option value="qcm">QCM (choix multiple)</option>
+    </select>
+
+    <button onclick="addQuestion()">Ajouter la question</button>
+  </div>
+
+  <h2>Liste des questions</h2>
+  <ul id="questionList"></ul>
+
+  <div id="editForm">
+    <h3>Modifier la question</h3>
+    <label for="editQuestionText">Texte :</label>
+    <input type="text" id="editQuestionText" />
+
+    <label for="editQuestionType">Type :</label>
+    <select id="editQuestionType">
+      <option value="ouverte">Réponse ouverte</option>
+      <option value="qcm">QCM (choix multiple)</option>
+    </select>
+
+    <button onclick="updateQuestion()">Sauvegarder</button>
+    <button onclick="cancelEdit()">Annuler</button>
+  </div>
 
   <script>
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Connectez-vous d’abord');
+      window.location.href = 'index.html';
+    }
+
     const urlParams = new URLSearchParams(window.location.search);
     const sondageId = urlParams.get('id');
-    const token = localStorage.getItem('token');
-
     if (!sondageId) {
       alert('Aucun sondage spécifié');
       window.location.href = 'sondages.html';
     }
 
+    let questions = [];
+    let editIndex = null;
+
     async function fetchQuestions() {
-      const res = await fetch(`http://localhost:5001/api/sondages/${sondageId}`);
-      if (!res.ok) {
-        alert('Erreur lors du chargement du sondage');
-        return;
-      }
-      const sondage = await res.json();
-      document.getElementById('sondageTitre').textContent = sondage.nom;
-      const form = document.getElementById('reponseForm');
-
-      sondage.questions.forEach((q, index) => {
-        const div = document.createElement('div');
-        div.className = 'question';
-        div.innerHTML = `<label>${q.intitule}</label><br/>`;
-
-        if (q.type === 'ouverte') {
-          div.innerHTML += `<input type="text" name="q${index}" data-id="${q._id}" />`;
-        } else if (q.type === 'qcm') {
-          q.reponses.forEach(rep => {
-            div.innerHTML += `
-              <label>
-                <input type="radio" name="q${index}" value="${rep}" data-id="${q._id}" />
-                ${rep}
-              </label><br/>
-            `;
-          });
+      try {
+        const res = await fetch(`http://localhost:5001/api/sondages/${sondageId}`, {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!res.ok) {
+          alert('Erreur chargement sondage');
+          return;
         }
-
-        form.appendChild(div);
-      });
-
-      const btn = document.createElement('button');
-      btn.textContent = 'Envoyer';
-      btn.type = 'submit';
-      form.appendChild(btn);
+        const data = await res.json();
+        questions = data.questions || [];
+        renderQuestions();
+      } catch (e) {
+        alert('Erreur réseau');
+        console.error(e);
+      }
     }
 
-    document.getElementById('reponseForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const form = e.target;
-      const inputs = form.querySelectorAll('[data-id]');
-      const reponses = [];
+    function renderQuestions() {
+        const ul = document.getElementById('questionList');
+        ul.innerHTML = '';
+        questions.forEach((q, i) => {
+            const texteQuestion = q.text ?? q.texte ?? '(question sans texte)';
+            const typeQuestion = q.type === 'qcm' ? 'QCM (choix multiple)' : 'Réponse ouverte';
+            const li = document.createElement('li');
+            li.innerHTML = `
+            <strong>Q${i + 1} :</strong> ${texteQuestion} <br/>
+            <em>Type :</em> ${typeQuestion}
+            `;
+            // boutons
+            const btnEdit = document.createElement('button');
+            btnEdit.textContent = 'Modifier';
+            btnEdit.onclick = () => startEdit(i);
 
-      const addedIds = new Set();
-      inputs.forEach(input => {
-        const questionId = input.getAttribute('data-id');
-        if (!addedIds.has(questionId)) {
-          if ((input.type === 'text' && input.value) || (input.type === 'radio' && input.checked)) {
-            reponses.push({ questionId, valeur: input.value });
-            addedIds.add(questionId);
-          }
-        }
-      });
+            const btnDelete = document.createElement('button');
+            btnDelete.textContent = 'Supprimer';
+            btnDelete.onclick = () => deleteQuestion(i);
 
+            const actionsDiv = document.createElement('div');
+            actionsDiv.classList.add('actions');
+            actionsDiv.appendChild(btnEdit);
+            actionsDiv.appendChild(btnDelete);
+
+            li.appendChild(actionsDiv);
+            ul.appendChild(li);
+        });
+    }
+
+
+    async function addQuestion() {
+      const text = document.getElementById('newQuestionText').value.trim();
+      const type = document.getElementById('newQuestionType').value;
+
+      if (!text) {
+        alert('Le texte de la question est obligatoire');
+        return;
+      }
+
+      questions.push({ text, type, reponses: [] });
+
+      // Envoyer la mise à jour au backend
+      await saveQuestions();
+
+      // Reset formulaire
+      document.getElementById('newQuestionText').value = '';
+      document.getElementById('newQuestionType').value = 'ouverte';
+
+      renderQuestions();
+    }
+
+    function startEdit(index) {
+      editIndex = index;
+      document.getElementById('editQuestionText').value = questions[index].text;
+      document.getElementById('editQuestionType').value = questions[index].type;
+      document.getElementById('editForm').style.display = 'block';
+      document.getElementById('addForm').style.display = 'none';
+    }
+
+    async function updateQuestion() {
+      const text = document.getElementById('editQuestionText').value.trim();
+      const type = document.getElementById('editQuestionType').value;
+
+      if (!text) {
+        alert('Le texte de la question est obligatoire');
+        return;
+      }
+
+      questions[editIndex] = { text, type };
+
+      await saveQuestions();
+
+      cancelEdit();
+      renderQuestions();
+    }
+
+    function cancelEdit() {
+      editIndex = null;
+      document.getElementById('editForm').style.display = 'none';
+      document.getElementById('addForm').style.display = 'block';
+    }
+
+    async function deleteQuestion(index) {
+      if (!confirm('Voulez-vous vraiment supprimer cette question ?')) return;
+      questions.splice(index, 1);
+      await saveQuestions();
+      renderQuestions();
+    }
+
+    async function saveQuestions() {
       try {
-        const res = await fetch('http://localhost:5001/api/reponses', {
-          method: 'POST',
+        const res = await fetch(`http://localhost:5001/api/sondages/${sondageId}/questions`, {
+          method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ' + token
           },
-          body: JSON.stringify({ sondageId, reponses })
+          body: JSON.stringify({ questions })
         });
-        if (res.ok) {
-          alert('Réponses envoyées avec succès !');
-          window.location.href = 'sondages.html';
-        } else {
+        if (!res.ok) {
           const data = await res.json();
-          alert(data.message || 'Erreur lors de l\'envoi des réponses');
+          alert('Erreur sauvegarde : ' + (data.message || res.statusText));
         }
-      } catch (err) {
-        console.error(err);
+      } catch (e) {
         alert('Erreur réseau');
+        console.error(e);
       }
-    });
+    }
+
+    function goBack() {
+      window.location.href = 'sondages.html';
+    }
+
+    function logout() {
+      localStorage.removeItem('token');
+      window.location.href = 'index.html';
+    }
 
     fetchQuestions();
   </script>
