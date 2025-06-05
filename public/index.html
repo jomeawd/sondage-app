@@ -87,6 +87,7 @@
       if (data.token) {
         localStorage.setItem('token', data.token);
         alert('Connecté !');
+        window.location.href = '/sondages.html';
       } else {
         alert('Erreur : ' + (data.message || 'Connexion impossible'));
       }

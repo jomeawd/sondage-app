@@ -9,6 +9,8 @@ router.put('/:id', auth, sondageController.updateSondage);
 router.delete('/:id', auth, sondageController.deleteSondage);
 router.get('/public', sondageController.getAllPublicSondages);
 
+router.get('/', auth, sondageController.getAllSondages);
+
 
 module.exports = router;
 

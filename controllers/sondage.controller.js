@@ -29,6 +29,16 @@ exports.deleteSondage = async (req, res) => {
   if (!sondage || sondage.createur.toString() !== req.user.id) {
     return res.status(403).json({ message: 'Non autorisé' });
   }
-  await sondage.remove();
+  await sondage.deleteOne();
   res.json({ message: 'Sondage supprimé' });
 };
+
+exports.getAllSondages = async (req, res) => {
+    try {
+      const sondages = await Sondage.find({ createur: req.user.id });
+      res.status(200).json(sondages);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  };
+  
