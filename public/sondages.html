@@ -54,6 +54,15 @@
     let sondages = [];
     let editId = null;
 
+    function getUserIdFromToken(token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.id;
+      } catch {
+        return null;
+      }
+    }
+
     async function fetchSondages() {
       const res = await fetch('http://localhost:5001/api/sondages', {
         headers: { 'Authorization': 'Bearer ' + token }
@@ -66,10 +75,12 @@
       sondages = await res.json();
       renderSondages();
     }
-
+    
     function renderSondages() {
         const ul = document.getElementById('sondageList');
         ul.innerHTML = '';
+
+        const userId = getUserIdFromToken(token);
 
         sondages.forEach(s => {
             const li = document.createElement('li');
@@ -77,26 +88,29 @@
             // Création contenu HTML avec titre et lien
             li.innerHTML = `
             <h3>${s.nom || '(Sans titre)'}</h3>
-            <a href="questions.html?id=${s._id}">Voir les questions</a>
+            <p>${s.createur?.nom || s.createur?.email || 'Inconnu'}</p>
+            <a href="questions.html?id=${s._id}">Voir les réponses</a>
             `;
 
-            // Bouton modifier
-            const btnEdit = document.createElement('button');
-            btnEdit.textContent = 'Modifier';
-            btnEdit.onclick = () => startEdit(s);
+            // Affiche les boutons seulement si l'utilisateur est le créateur
+            if (s.createur && (s.createur._id === userId || s.createur === userId)) {
+                // Bouton modifier
+                const btnEdit = document.createElement('button');
+                btnEdit.textContent = 'Modifier';
+                btnEdit.onclick = () => startEdit(s);
 
-            // Bouton supprimer
-            const btnDelete = document.createElement('button');
-            btnDelete.textContent = 'Supprimer';
-            btnDelete.onclick = () => deleteSondage(s._id);
+                // Bouton supprimer
+                const btnDelete = document.createElement('button');
+                btnDelete.textContent = 'Supprimer';
+                btnDelete.onclick = () => deleteSondage(s._id);
 
-            li.appendChild(btnEdit);
-            li.appendChild(btnDelete);
+                li.appendChild(btnEdit);
+                li.appendChild(btnDelete);
+            }
+
             ul.appendChild(li);
         });
     }
-
-
     async function addSondage() {
       const titre = document.getElementById('newTitre').value.trim();
       if (!titre) {
