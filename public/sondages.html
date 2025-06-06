@@ -85,7 +85,9 @@
                 // Bouton modifier
                 const btnEdit = document.createElement('button');
                 btnEdit.textContent = 'Modifier';
-                btnEdit.onclick = () => startEdit(s);
+                btnEdit.onclick = () => {
+                  window.location.href = `edit-sondage.html?id=${s._id}`;
+                };
 
                 // Bouton supprimer
                 const btnDelete = document.createElement('button');
@@ -99,6 +101,7 @@
             ul.appendChild(li);
         });
     }
+
     async function addSondage() {
       const titre = document.getElementById('newTitre').value.trim();
       if (!titre) {

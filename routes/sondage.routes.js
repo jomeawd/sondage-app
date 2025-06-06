@@ -12,7 +12,7 @@ router.get('/public', sondageController.getAllPublicSondages);
 
 router.get('/', auth, sondageController.getAllSondages);
 
-router.get('/:id', sondageController.getSondageById);
+router.get('/:id', auth, sondageController.getSondageById);
 
 // GET sondage complet
 router.get('/:id', async (req, res) => {
