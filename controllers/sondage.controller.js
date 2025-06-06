@@ -48,13 +48,13 @@ exports.deleteSondage = async (req, res) => {
 };
 
 exports.getAllSondages = async (req, res) => {
-    try {
-      const sondages = await Sondage.find({ createur: req.user.id });
-      res.status(200).json(sondages);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  };
+  try {
+    const sondages = await Sondage.find().populate('createur', 'email');
+    res.status(200).json(sondages);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
   
   exports.getSondageById = async (req, res) => {
     try {

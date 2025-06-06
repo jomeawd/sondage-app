@@ -29,20 +29,8 @@
 
   <ul id="sondageList"></ul>
 
-  <!-- Formulaire ajout -->
-  <div id="addForm">
-    <h2>Ajouter un nouveau sondage</h2>
-    <input type="text" id="newTitre" placeholder="Titre du sondage" />
-    <button onclick="addSondage()">Ajouter</button>
-  </div>
+<button onclick="window.location.href='create-sondage.html'">Créer un sondage</button>
 
-  <!-- Formulaire modification -->
-  <div id="editForm" style="display:none;">
-    <h2>Modifier un sondage</h2>
-    <input type="text" id="editTitre" placeholder="Nouveau titre" />
-    <button onclick="updateSondage()">Sauvegarder</button>
-    <button onclick="cancelEdit()">Annuler</button>
-  </div>
   
 
   <script>
@@ -53,6 +41,15 @@
 
     let sondages = [];
     let editId = null;
+
+    function getUserIdFromToken(token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.id;
+      } catch {
+        return null;
+      }
+    }
 
     async function fetchSondages() {
       const res = await fetch('http://localhost:5001/api/sondages', {
@@ -66,10 +63,12 @@
       sondages = await res.json();
       renderSondages();
     }
-
+    
     function renderSondages() {
         const ul = document.getElementById('sondageList');
         ul.innerHTML = '';
+
+        const userId = getUserIdFromToken(token);
 
         sondages.forEach(s => {
             const li = document.createElement('li');
@@ -77,26 +76,29 @@
             // Création contenu HTML avec titre et lien
             li.innerHTML = `
             <h3>${s.nom || '(Sans titre)'}</h3>
-            <a href="questions.html?id=${s._id}">Voir les questions</a>
+            <p>${s.createur?.nom || s.createur?.email || 'Inconnu'}</p>
+            <a href="questions.html?id=${s._id}">Voir les réponses</a>
             `;
 
-            // Bouton modifier
-            const btnEdit = document.createElement('button');
-            btnEdit.textContent = 'Modifier';
-            btnEdit.onclick = () => startEdit(s);
+            // Affiche les boutons seulement si l'utilisateur est le créateur
+            if (s.createur && (s.createur._id === userId || s.createur === userId)) {
+                // Bouton modifier
+                const btnEdit = document.createElement('button');
+                btnEdit.textContent = 'Modifier';
+                btnEdit.onclick = () => startEdit(s);
 
-            // Bouton supprimer
-            const btnDelete = document.createElement('button');
-            btnDelete.textContent = 'Supprimer';
-            btnDelete.onclick = () => deleteSondage(s._id);
+                // Bouton supprimer
+                const btnDelete = document.createElement('button');
+                btnDelete.textContent = 'Supprimer';
+                btnDelete.onclick = () => deleteSondage(s._id);
 
-            li.appendChild(btnEdit);
-            li.appendChild(btnDelete);
+                li.appendChild(btnEdit);
+                li.appendChild(btnDelete);
+            }
+
             ul.appendChild(li);
         });
     }
-
-
     async function addSondage() {
       const titre = document.getElementById('newTitre').value.trim();
       if (!titre) {

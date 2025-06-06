@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Créer un sondage</title>
+    <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    ul { list-style: none; padding: 0; }
+    li { margin-bottom: 10px; }
+    button {
+      margin-left: 5px;
+      cursor: pointer;
+    }
+    input[type="text"] {
+      padding: 5px;
+      width: 300px;
+      font-size: 14px;
+    }
+    #addForm, #editForm {
+      margin-top: 20px;
+      margin-bottom: 30px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Créer un nouveau sondage</h1>
+
+  <input type="text" id="titreSondage" placeholder="Titre du sondage" />
+  <button onclick="creerSondage()">Créer</button>
+  <button onclick="retour()">Annuler</button>
+
+  <script>
+    const token = localStorage.getItem('token');
+    if (!token) {
+      window.location.href = 'index.html';
+    }
+
+    async function creerSondage() {
+      const titre = document.getElementById('titreSondage').value.trim();
+      if (!titre) {
+        alert('Le titre est obligatoire.');
+        return;
+      }
+
+      try {
+        const res = await fetch('http://localhost:5001/api/sondages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({ nom: titre })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          window.location.href = `sondages.html`; // rediriger vers la page de questions
+        } else {
+          const err = await res.json();
+          alert('Erreur : ' + (err.message || 'Création échouée'));
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Erreur serveur ou réseau');
+      }
+    }
+
+    function retour() {
+      window.location.href = 'sondages.html';
+    }
+  </script>
+</body>
+</html>
