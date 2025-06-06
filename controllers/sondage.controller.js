@@ -58,7 +58,7 @@ exports.getAllSondages = async (req, res) => {
   
   exports.getSondageById = async (req, res) => {
     try {
-      const sondage = await Sondage.findById(req.params.id);
+      const sondage = await Sondage.findById(req.params.id).populate('questions');
       if (!sondage) return res.status(404).json({ message: 'Sondage introuvable' });
       res.json(sondage);
     } catch (err) {

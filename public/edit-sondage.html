@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Modifier un sondage</title>
+</head>
+<body>
+  <h1>Modifier le sondage</h1>
+
+  <div id="infoContainer" style="display:none;">
+    <label for="titre">Titre :</label>
+    <input type="text" id="titre" />
+    <br/><br/>
+    <h2>Questions du sondage</h2>
+    <ul id="listeQuestions"></ul>
+    <br/><br/>
+    <button onclick="sauvegarder()">Sauvegarder</button>
+    <button onclick="retour()">Annuler</button>
+  </div>
+
+  <p id="message"></p>
+
+  <script>
+    const token = localStorage.getItem('token');
+    if (!token) window.location.href = 'index.html';
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const sondageId = urlParams.get('id');
+
+    let currentUserId = null;
+
+    // Récupérer l'ID de l'utilisateur courant
+    function parseJwt(token) {
+      try {
+        const base64Payload = token.split('.')[1];
+        const payload = JSON.parse(atob(base64Payload));
+        return payload;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    const decoded = parseJwt(token);
+    if (decoded && decoded.id) currentUserId = decoded.id;
+
+    async function chargerSondage() {
+      try {
+        const res = await fetch(`http://localhost:5001/api/sondages/${sondageId}`, {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+
+        if (!res.ok) {
+          document.getElementById('message').innerText = "Erreur : Sondage introuvable.";
+          return;
+        }
+
+        const sondage = await res.json();
+
+        if (sondage.createur !== currentUserId) {
+          document.getElementById('message').innerText = "Vous n'êtes pas autorisé à modifier ce sondage.";
+          return;
+        }
+
+        document.getElementById('infoContainer').style.display = 'block';
+        document.getElementById('titre').value = sondage.nom;
+
+        const liste = document.getElementById('listeQuestions');
+liste.innerHTML = '';
+
+if (sondage.questions && sondage.questions.length > 0) {
+  sondage.questions.forEach((q, index) => {
+    const li = document.createElement('li');
+    li.textContent = `${index + 1}. ${q.text || 'Question sans titre'}`;
+    liste.appendChild(li);
+  });
+} else {
+  const li = document.createElement('li');
+  li.textContent = "Aucune question pour ce sondage.";
+  liste.appendChild(li);
+}
+
+
+      } catch (err) {
+        console.error(err);
+        document.getElementById('message').innerText = "Erreur serveur ou réseau.";
+      }
+    }
+
+    async function sauvegarder() {
+      const titre = document.getElementById('titre').value.trim();
+
+      try {
+        const res = await fetch(`http://localhost:5001/api/sondages/${sondageId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({ nom: titre})
+        });
+
+        if (res.ok) {
+          alert("Modifications enregistrées !");
+          window.location.href = 'sondages.html';
+        } else {
+          const err = await res.json();
+          alert('Erreur : ' + (err.message || 'Impossible de modifier le sondage'));
+        }
+      } catch (err) {
+        alert('Erreur serveur');
+        console.error(err);
+      }
+    }
+
+    function retour() {
+      window.location.href = 'sondages.html';
+    }
+
+    chargerSondage();
+  </script>
+</body>
+</html>
