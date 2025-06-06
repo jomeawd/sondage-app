@@ -19,7 +19,9 @@
   <h1>Questions du sondage</h1>
   <button onclick="goBack()">Retour aux sondages</button>
 
-  <h2>Ajouter une question</h2>
+  <h2 id="titreSondage"></h2>
+
+  <h3>Ajouter une question</h3>
   <div id="addForm">
     <label for="newQuestionText">Texte de la question :</label>
     <input type="text" id="newQuestionText" placeholder="Entrez la question" />
@@ -73,23 +75,29 @@
     let questions = [];
     let editIndex = null;
 
-    async function fetchQuestions() {
-      try {
-        const res = await fetch(`http://localhost:5001/api/sondages/${sondageId}`, {
-          headers: { 'Authorization': 'Bearer ' + token }
-        });
-        if (!res.ok) {
-          alert('Erreur chargement sondage');
-          return;
-        }
-        const data = await res.json();
-        questions = data.questions || [];
-        renderQuestions();
-      } catch (e) {
-        alert('Erreur réseau');
-        console.error(e);
-      }
+async function fetchQuestions() {
+  try {
+    const res = await fetch(`http://localhost:5001/api/sondages/${sondageId}`, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) {
+      alert('Erreur chargement sondage');
+      return;
     }
+    const data = await res.json();
+console.log('Données du sondage:', data);
+
+    // Mettre à jour le titre du sondage dans le DOM
+    document.getElementById('titreSondage').textContent = data.nom || '(Sans titre)';
+
+    questions = data.questions || [];
+    renderQuestions();
+  } catch (e) {
+    alert('Erreur réseau');
+    console.error(e);
+  }
+}
+
 
     function renderQuestions() {
         const ul = document.getElementById('questionList');
