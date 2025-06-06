@@ -19,7 +19,9 @@
   <h1>Questions du sondage</h1>
   <button onclick="goBack()">Retour aux sondages</button>
 
-  <h2>Ajouter une question</h2>
+  <h2 id="titreSondage"></h2>
+
+  <h3>Ajouter une question</h3>
   <div id="addForm">
     <label for="newQuestionText">Texte de la question :</label>
     <input type="text" id="newQuestionText" placeholder="Entrez la question" />
@@ -29,6 +31,11 @@
       <option value="ouverte">Réponse ouverte</option>
       <option value="qcm">QCM (choix multiple)</option>
     </select>
+    <div id="qcmOptions" style="display: none; margin-top: 10px;">
+      <label>Réponses possibles :</label>
+      <div id="reponsesContainer"></div>
+      <button type="button" onclick="addOption()">Ajouter une option</button>
+    </div>
 
     <button onclick="addQuestion()">Ajouter la question</button>
   </div>
@@ -68,23 +75,29 @@
     let questions = [];
     let editIndex = null;
 
-    async function fetchQuestions() {
-      try {
-        const res = await fetch(`http://localhost:5001/api/sondages/${sondageId}`, {
-          headers: { 'Authorization': 'Bearer ' + token }
-        });
-        if (!res.ok) {
-          alert('Erreur chargement sondage');
-          return;
-        }
-        const data = await res.json();
-        questions = data.questions || [];
-        renderQuestions();
-      } catch (e) {
-        alert('Erreur réseau');
-        console.error(e);
-      }
+async function fetchQuestions() {
+  try {
+    const res = await fetch(`http://localhost:5001/api/sondages/${sondageId}`, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) {
+      alert('Erreur chargement sondage');
+      return;
     }
+    const data = await res.json();
+console.log('Données du sondage:', data);
+
+    // Mettre à jour le titre du sondage dans le DOM
+    document.getElementById('titreSondage').textContent = data.nom || '(Sans titre)';
+
+    questions = data.questions || [];
+    renderQuestions();
+  } catch (e) {
+    alert('Erreur réseau');
+    console.error(e);
+  }
+}
+
 
     function renderQuestions() {
         const ul = document.getElementById('questionList');
@@ -93,10 +106,21 @@
             const texteQuestion = q.text ?? q.texte ?? '(question sans texte)';
             const typeQuestion = q.type === 'qcm' ? 'QCM (choix multiple)' : 'Réponse ouverte';
             const li = document.createElement('li');
-            li.innerHTML = `
-            <strong>Q${i + 1} :</strong> ${texteQuestion} <br/>
-            <em>Type :</em> ${typeQuestion}
+            let html = `
+              <strong>Q${i + 1} :</strong> ${texteQuestion} <br/>
+              <em>Type :</em> ${typeQuestion}
             `;
+
+            if (q.type === 'qcm' && q.reponses && q.reponses.length > 0) {
+              html += '<ul style="margin-top: 5px; margin-left: 15px;">';
+              q.reponses.forEach((r, idx) => {
+                html += `<li style="list-style: circle;">${r}</li>`;
+              });
+              html += '</ul>';
+            }
+
+            li.innerHTML = html;
+
             // boutons
             const btnEdit = document.createElement('button');
             btnEdit.textContent = 'Modifier';
@@ -116,6 +140,15 @@
         });
     }
 
+    function addOption() {
+      const container = document.getElementById('reponsesContainer');
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = 'Texte de la réponse';
+      input.style.marginBottom = '5px';
+      container.appendChild(input);
+    }
+
 
     async function addQuestion() {
       const text = document.getElementById('newQuestionText').value.trim();
@@ -126,7 +159,22 @@
         return;
       }
 
-      questions.push({ text, type, reponses: [] });
+      let reponses = [];
+
+      if (type === 'qcm') {
+        const inputs = document.querySelectorAll('#reponsesContainer input');
+        reponses = Array.from(inputs)
+          .map(input => input.value.trim())
+          .filter(val => val !== '');
+
+        if (reponses.length < 2) {
+          alert('Veuillez fournir au moins deux réponses pour un QCM');
+          return;
+        }
+      }
+
+      questions.push({ text, type, reponses });
+
 
       // Envoyer la mise à jour au backend
       await saveQuestions();
@@ -134,6 +182,8 @@
       // Reset formulaire
       document.getElementById('newQuestionText').value = '';
       document.getElementById('newQuestionType').value = 'ouverte';
+      document.getElementById('reponsesContainer').innerHTML = '';
+      document.getElementById('qcmOptions').style.display = 'none';
 
       renderQuestions();
     }
@@ -206,6 +256,11 @@
     }
 
     fetchQuestions();
+    document.getElementById('newQuestionType').addEventListener('change', function () {
+      const selected = this.value;
+      document.getElementById('qcmOptions').style.display = selected === 'qcm' ? 'block' : 'none';
+    });
+
   </script>
 </body>
 </html>
