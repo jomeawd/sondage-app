@@ -20,7 +20,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Routes API
 app.use('/api/auth', authRoutes);
 app.use('/api/sondages', sondageRoutes);
-app.use('/api/reponses', reponseRoutes);
+app.use('/api', reponseRoutes);
 
 // MongoDB
 mongoose.connect(process.env.MONGO_URI)

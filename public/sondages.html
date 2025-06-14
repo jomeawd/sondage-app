@@ -20,6 +20,22 @@
       margin-top: 20px;
       margin-bottom: 30px;
     }
+    .sondage-item {
+      background: #f9f9f9;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+    }
+    .sondage-owner {
+      color: #28a745;
+      font-weight: bold;
+    }
+    .sondage-public {
+      color: #6c757d;
+    }
+    .actions {
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
@@ -29,9 +45,7 @@
 
   <ul id="sondageList"></ul>
 
-<button onclick="window.location.href='create-sondage.html'">Créer un sondage</button>
-
-  
+  <button onclick="window.location.href='create-sondage.html'">Créer un sondage</button>
 
   <script>
     const token = localStorage.getItem('token');
@@ -72,32 +86,77 @@
 
         sondages.forEach(s => {
             const li = document.createElement('li');
+            li.className = 'sondage-item';
 
-            // Création contenu HTML avec titre et lien
+            // Vérifier si l'utilisateur est le créateur
+            const isOwner = s.createur && (s.createur._id === userId || s.createur === userId);
+            
+            // Création du contenu HTML
             li.innerHTML = `
-            <h3>${s.nom || '(Sans titre)'}</h3>
-            <p>${s.createur?.nom || s.createur?.email || 'Inconnu'}</p>
-            <a href="questions.html?id=${s._id}">Voir les réponses</a>
+                <h3>${s.nom || '(Sans titre)'}</h3>
+                <p class="${isOwner ? 'sondage-owner' : 'sondage-public'}">
+                    ${isOwner ? '✓ Votre sondage' : '👥 Sondage public'} - 
+                    Créé par: ${s.createur?.nom || s.createur?.email || 'Inconnu'}
+                </p>
             `;
 
-            // Affiche les boutons seulement si l'utilisateur est le créateur
-            if (s.createur && (s.createur._id === userId || s.createur === userId)) {
-                // Bouton modifier
-                const btnEdit = document.createElement('button');
-                btnEdit.textContent = 'Modifier';
-                btnEdit.onclick = () => {
-                  window.location.href = `edit-sondage.html?id=${s._id}`;
+            // Conteneur pour les actions
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'actions';
+
+            if (isOwner) {
+                // Boutons pour le propriétaire : gérer les questions, modifier, supprimer
+                const btnQuestions = document.createElement('button');
+                btnQuestions.textContent = 'Gérer les questions';
+                btnQuestions.style.backgroundColor = '#007bff';
+                btnQuestions.style.color = 'white';
+                btnQuestions.style.border = 'none';
+                btnQuestions.style.padding = '8px 12px';
+                btnQuestions.style.borderRadius = '4px';
+                btnQuestions.onclick = () => {
+                    window.location.href = `questions.html?id=${s._id}`;
                 };
 
-                // Bouton supprimer
+                const btnEdit = document.createElement('button');
+                btnEdit.textContent = 'Modifier';
+                btnEdit.style.backgroundColor = '#28a745';
+                btnEdit.style.color = 'white';
+                btnEdit.style.border = 'none';
+                btnEdit.style.padding = '8px 12px';
+                btnEdit.style.borderRadius = '4px';
+                btnEdit.onclick = () => {
+                    window.location.href = `edit-sondage.html?id=${s._id}`;
+                };
+
                 const btnDelete = document.createElement('button');
                 btnDelete.textContent = 'Supprimer';
+                btnDelete.style.backgroundColor = '#dc3545';
+                btnDelete.style.color = 'white';
+                btnDelete.style.border = 'none';
+                btnDelete.style.padding = '8px 12px';
+                btnDelete.style.borderRadius = '4px';
                 btnDelete.onclick = () => deleteSondage(s._id);
 
-                li.appendChild(btnEdit);
-                li.appendChild(btnDelete);
+                actionsDiv.appendChild(btnQuestions);
+                actionsDiv.appendChild(btnEdit);
+                actionsDiv.appendChild(btnDelete);
+            } else {
+                // Bouton pour répondre au sondage public
+                const btnRepondre = document.createElement('button');
+                btnRepondre.textContent = 'Répondre au sondage';
+                btnRepondre.style.backgroundColor = '#17a2b8';
+                btnRepondre.style.color = 'white';
+                btnRepondre.style.border = 'none';
+                btnRepondre.style.padding = '8px 12px';
+                btnRepondre.style.borderRadius = '4px';
+                btnRepondre.onclick = () => {
+                    window.location.href = `repondre-sondage.html?id=${s._id}`;
+                };
+
+                actionsDiv.appendChild(btnRepondre);
             }
 
+            li.appendChild(actionsDiv);
             ul.appendChild(li);
         });
     }

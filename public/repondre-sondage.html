@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Répondre au sondage</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 700px; margin: auto; }
+    .question {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      border-left: 4px solid #007bff;
+    }
+    .question h3 {
+      margin-top: 0;
+      color: #495057;
+    }
+    .option {
+      margin: 10px 0;
+    }
+    .option input[type="radio"] {
+      margin-right: 10px;
+    }
+    .option input[type="checkbox"] {
+      margin-right: 10px;
+    }
+    textarea {
+      width: 100%;
+      min-height: 80px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-family: Arial, sans-serif;
+      resize: vertical;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 10px 5px;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    .success-message {
+      background: #d4edda;
+      color: #155724;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 20px 0;
+      border: 1px solid #c3e6cb;
+    }
+    .error-message {
+      background: #f8d7da;
+      color: #721c24;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 20px 0;
+      border: 1px solid #f5c6cb;
+    }
+    .sondage-info {
+      background: #e9ecef;
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 30px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Répondre au sondage</h1>
+  <button onclick="goBack()">Retour aux sondages</button>
+
+  <div id="sondageInfo" class="sondage-info"></div>
+  <div id="questionsContainer"></div>
+  
+  <div id="submitSection" style="display: none;">
+    <button onclick="submitReponses()">Envoyer mes réponses</button>
+  </div>
+
+  <div id="messageContainer"></div>
+
+  <script>
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Connectez-vous d\'abord');
+      window.location.href = 'index.html';
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const sondageId = urlParams.get('id');
+    if (!sondageId) {
+      alert('Aucun sondage spécifié');
+      window.location.href = 'sondages.html';
+    }
+
+    let sondageData = null;
+    let reponses = {};
+
+    async function fetchSondage() {
+      try {
+        const res = await fetch(`http://localhost:5001/api/sondages/${sondageId}`, {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!res.ok) {
+          showMessage('Erreur lors du chargement du sondage', 'error');
+          return;
+        }
+        sondageData = await res.json();
+        console.log('Données du sondage:', sondageData);
+
+        displaySondageInfo();
+        displayQuestions();
+      } catch (e) {
+        showMessage('Erreur réseau', 'error');
+        console.error(e);
+      }
+    }
+
+    function displaySondageInfo() {
+      const infoDiv = document.getElementById('sondageInfo');
+      infoDiv.innerHTML = `
+        <h2>${sondageData.nom || '(Sans titre)'}</h2>
+        <p><strong>Nombre de questions:</strong> ${sondageData.questions?.length || 0}</p>
+      `;
+    }
+
+    function displayQuestions() {
+      const container = document.getElementById('questionsContainer');
+      const questions = sondageData.questions || [];
+
+      if (questions.length === 0) {
+        container.innerHTML = '<p>Ce sondage ne contient aucune question.</p>';
+        return;
+      }
+
+      questions.forEach((question, index) => {
+        const questionDiv = document.createElement('div');
+        questionDiv.className = 'question';
+
+        let questionHTML = `<h3>Question ${index + 1}</h3>`;
+        questionHTML += `<p>${question.text || question.texte}</p>`;
+
+        if (question.type === 'qcm' && question.reponses && question.reponses.length > 0) {
+          question.reponses.forEach((option, optionIndex) => {
+            questionHTML += `
+              <div class="option">
+                <input type="radio" name="question_${index}" value="${option}" id="q${index}_opt${optionIndex}">
+                <label for="q${index}_opt${optionIndex}">${option}</label>
+              </div>
+            `;
+          });
+        } else {
+          // Question ouverte
+          questionHTML += `
+            <textarea id="question_${index}" placeholder="Votre réponse..."></textarea>
+          `;
+        }
+
+        questionDiv.innerHTML = questionHTML;
+        container.appendChild(questionDiv);
+      });
+
+      // Afficher le bouton de soumission
+      document.getElementById('submitSection').style.display = 'block';
+    }
+
+    function collectReponses() {
+      const questions = sondageData.questions || [];
+      reponses = {};
+
+      questions.forEach((question, index) => {
+        if (question.type === 'qcm') {
+          const selectedOption = document.querySelector(`input[name="question_${index}"]:checked`);
+          if (selectedOption) {
+            reponses[index] = {
+                questionId: sondageData.questions[index]._id,
+                reponse: selectedOption.value,
+                type: 'qcm'
+            };
+          }
+        } else {
+          const textarea = document.getElementById(`question_${index}`);
+          if (textarea && textarea.value.trim()) {
+            reponses[index] = {
+                questionId: sondageData.questions[index]._id,
+                reponse: textarea.value.trim(),
+                type: 'ouverte'
+            };
+
+          }
+        }
+      });
+
+      return reponses;
+    }
+
+    async function submitReponses() {
+      const reponsesCollected = collectReponses();
+      
+      // Vérifier qu'au moins une question a été répondue
+      if (Object.keys(reponsesCollected).length === 0) {
+        showMessage('Veuillez répondre à au moins une question', 'error');
+        return;
+      }
+
+      try {
+        const reponsesArray = Object.values(reponsesCollected);
+        
+        const res = await fetch(`http://localhost:5001/api/sondages/${sondageId}/repondre`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({
+            sondageId: sondageId,
+            reponses: reponsesArray
+          })
+
+        });
+
+        if (res.ok) {
+          showMessage('Vos réponses ont été enregistrées avec succès !', 'success');
+          
+          // Désactiver le formulaire
+          const inputs = document.querySelectorAll('input, textarea, button');
+          inputs.forEach(input => {
+            if (input.onclick !== goBack) {
+              input.disabled = true;
+            }
+          });
+          
+          // Changer le texte du bouton
+          const submitBtn = document.querySelector('button[onclick="submitReponses()"]');
+          if (submitBtn) {
+            submitBtn.textContent = 'Réponses envoyées ✓';
+            submitBtn.style.background = '#28a745';
+          }
+
+        } else {
+          const data = await res.json();
+          showMessage('Erreur lors de l\'envoi : ' + (data.message || 'Erreur inconnue'), 'error');
+        }
+      } catch (error) {
+        showMessage('Erreur réseau ou serveur', 'error');
+        console.error(error);
+      }
+    }
+
+    function showMessage(message, type) {
+      const container = document.getElementById('messageContainer');
+      const messageDiv = document.createElement('div');
+      messageDiv.className = type === 'success' ? 'success-message' : 'error-message';
+      messageDiv.textContent = message;
+      
+      // Supprimer les anciens messages
+      container.innerHTML = '';
+      container.appendChild(messageDiv);
+
+      // Faire défiler vers le message
+      messageDiv.scrollIntoView({ behavior: 'smooth' });
+      
+      // Supprimer le message après 5 secondes pour les messages de succès
+      if (type === 'success') {
+        setTimeout(() => {
+          if (container.contains(messageDiv)) {
+            container.removeChild(messageDiv);
+          }
+        }, 5000);
+      }
+    }
+
+    function goBack() {
+      window.location.href = 'sondages.html';
+    }
+
+    // Charger le sondage au démarrage
+    fetchSondage();
+  </script>
+</body>
+</html>

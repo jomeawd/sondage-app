@@ -12,6 +12,22 @@
     button { margin-top: 5px; cursor: pointer; }
     .actions { margin-top: 8px; }
     #editForm { display: none; background: #dff0d8; padding: 10px; border-radius: 5px; margin-bottom: 20px; }
+    .access-denied {
+      background: #f8d7da;
+      color: #721c24;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 20px 0;
+      border: 1px solid #f5c6cb;
+    }
+    .owner-only {
+      background: #d4edda;
+      color: #155724;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 20px 0;
+      border: 1px solid #c3e6cb;
+    }
   </style>
 </head>
 <body>
@@ -20,24 +36,38 @@
   <button onclick="goBack()">Retour aux sondages</button>
 
   <h2 id="titreSondage"></h2>
+  <div id="ownershipInfo"></div>
 
-  <h3>Ajouter une question</h3>
-  <div id="addForm">
-    <label for="newQuestionText">Texte de la question :</label>
-    <input type="text" id="newQuestionText" placeholder="Entrez la question" />
+  <div id="ownerSection" style="display: none;">
+    <h3>Ajouter une question</h3>
+    <div id="addForm">
+      <label for="newQuestionText">Texte de la question :</label>
+      <input type="text" id="newQuestionText" placeholder="Entrez la question" />
 
-    <label for="newQuestionType">Type de réponse :</label>
-    <select id="newQuestionType">
-      <option value="ouverte">Réponse ouverte</option>
-      <option value="qcm">QCM (choix multiple)</option>
-    </select>
-    <div id="qcmOptions" style="display: none; margin-top: 10px;">
-      <label>Réponses possibles :</label>
-      <div id="reponsesContainer"></div>
-      <button type="button" onclick="addOption()">Ajouter une option</button>
+      <label for="newQuestionType">Type de réponse :</label>
+      <select id="newQuestionType">
+        <option value="ouverte">Réponse ouverte</option>
+        <option value="qcm">QCM (choix multiple)</option>
+      </select>
+      <div id="qcmOptions" style="display: none; margin-top: 10px;">
+        <label>Réponses possibles :</label>
+        <div id="reponsesContainer"></div>
+        <button type="button" onclick="addOption()">Ajouter une option</button>
+      </div>
+
+      <button onclick="addQuestion()">Ajouter la question</button>
     </div>
+  </div>
 
-    <button onclick="addQuestion()">Ajouter la question</button>
+  <div id="publicSection" style="display: none;">
+    <div class="access-denied">
+      <h3>🔒 Accès limité</h3>
+      <p>Vous ne pouvez pas modifier ce sondage car vous n'en êtes pas le créateur.</p>
+      <button onclick="window.location.href='repondre-sondage.html?id=' + sondageId" 
+              style="background: #007bff; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer;">
+        Répondre au sondage
+      </button>
+    </div>
   </div>
 
   <h2>Liste des questions</h2>
@@ -61,7 +91,7 @@
   <script>
     const token = localStorage.getItem('token');
     if (!token) {
-      alert('Connectez-vous d’abord');
+      alert('Connectez-vous d\'abord');
       window.location.href = 'index.html';
     }
 
@@ -74,34 +104,84 @@
 
     let questions = [];
     let editIndex = null;
+    let isOwner = false;
+    let sondageData = null;
 
-async function fetchQuestions() {
-  try {
-    const res = await fetch(`http://localhost:5001/api/sondages/${sondageId}`, {
-      headers: { 'Authorization': 'Bearer ' + token }
-    });
-    if (!res.ok) {
-      alert('Erreur chargement sondage');
-      return;
+    function getUserIdFromToken(token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.id;
+      } catch {
+        return null;
+      }
     }
-    const data = await res.json();
-console.log('Données du sondage:', data);
 
-    // Mettre à jour le titre du sondage dans le DOM
-    document.getElementById('titreSondage').textContent = data.nom || '(Sans titre)';
+    async function fetchQuestions() {
+      try {
+        const res = await fetch(`http://localhost:5001/api/sondages/${sondageId}`, {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!res.ok) {
+          alert('Erreur chargement sondage');
+          return;
+        }
+        sondageData = await res.json();
+        console.log('Données du sondage:', sondageData);
 
-    questions = data.questions || [];
-    renderQuestions();
-  } catch (e) {
-    alert('Erreur réseau');
-    console.error(e);
-  }
-}
+        // Vérifier si l'utilisateur est le propriétaire
+        const userId = getUserIdFromToken(token);
+        isOwner = sondageData.createur && (sondageData.createur._id === userId || sondageData.createur === userId);
 
+        // Mettre à jour le titre du sondage dans le DOM
+        document.getElementById('titreSondage').textContent = sondageData.nom || '(Sans titre)';
+
+        // Afficher les informations de propriété
+        updateOwnershipInfo();
+
+        questions = sondageData.questions || [];
+        renderQuestions();
+      } catch (e) {
+        alert('Erreur réseau');
+        console.error(e);
+      }
+    }
+
+    function updateOwnershipInfo() {
+      const ownershipDiv = document.getElementById('ownershipInfo');
+      const ownerSection = document.getElementById('ownerSection');
+      const publicSection = document.getElementById('publicSection');
+
+      if (isOwner) {
+        ownershipDiv.innerHTML = `
+          <div class="owner-only">
+            <h4>✅ Votre sondage</h4>
+            <p>Vous pouvez ajouter, modifier et supprimer les questions de ce sondage.</p>
+          </div>
+        `;
+        ownerSection.style.display = 'block';
+        publicSection.style.display = 'none';
+      } else {
+        ownershipDiv.innerHTML = `
+          <div class="access-denied">
+            <h4>👁️ Sondage public</h4>
+            <p>Créé par: ${sondageData.createur?.nom || sondageData.createur?.email || 'Inconnu'}</p>
+            <p>Vous pouvez consulter les questions mais pas les modifier.</p>
+          </div>
+        `;
+        ownerSection.style.display = 'none';
+        publicSection.style.display = 'block';
+      }
+    }
 
     function renderQuestions() {
         const ul = document.getElementById('questionList');
         ul.innerHTML = '';
+        
+        if (questions.length === 0) {
+          ul.innerHTML = '<li style="text-align: center; color: #666;">Aucune question pour le moment</li>';
+          return;
+        }
+
         questions.forEach((q, i) => {
             const texteQuestion = q.text ?? q.texte ?? '(question sans texte)';
             const typeQuestion = q.type === 'qcm' ? 'QCM (choix multiple)' : 'Réponse ouverte';
@@ -121,21 +201,35 @@ console.log('Données du sondage:', data);
 
             li.innerHTML = html;
 
-            // boutons
-            const btnEdit = document.createElement('button');
-            btnEdit.textContent = 'Modifier';
-            btnEdit.onclick = () => startEdit(i);
+            // Afficher les boutons seulement si l'utilisateur est propriétaire
+            if (isOwner) {
+              const btnEdit = document.createElement('button');
+              btnEdit.textContent = 'Modifier';
+              btnEdit.style.backgroundColor = '#28a745';
+              btnEdit.style.color = 'white';
+              btnEdit.style.border = 'none';
+              btnEdit.style.padding = '5px 10px';
+              btnEdit.style.borderRadius = '3px';
+              btnEdit.onclick = () => startEdit(i);
 
-            const btnDelete = document.createElement('button');
-            btnDelete.textContent = 'Supprimer';
-            btnDelete.onclick = () => deleteQuestion(i);
+              const btnDelete = document.createElement('button');
+              btnDelete.textContent = 'Supprimer';
+              btnDelete.style.backgroundColor = '#dc3545';
+              btnDelete.style.color = 'white';
+              btnDelete.style.border = 'none';
+              btnDelete.style.padding = '5px 10px';
+              btnDelete.style.borderRadius = '3px';
+              btnDelete.style.marginLeft = '5px';
+              btnDelete.onclick = () => deleteQuestion(i);
 
-            const actionsDiv = document.createElement('div');
-            actionsDiv.classList.add('actions');
-            actionsDiv.appendChild(btnEdit);
-            actionsDiv.appendChild(btnDelete);
+              const actionsDiv = document.createElement('div');
+              actionsDiv.classList.add('actions');
+              actionsDiv.appendChild(btnEdit);
+              actionsDiv.appendChild(btnDelete);
 
-            li.appendChild(actionsDiv);
+              li.appendChild(actionsDiv);
+            }
+
             ul.appendChild(li);
         });
     }
@@ -149,8 +243,12 @@ console.log('Données du sondage:', data);
       container.appendChild(input);
     }
 
-
     async function addQuestion() {
+      if (!isOwner) {
+        alert('Vous n\'avez pas l\'autorisation d\'ajouter des questions à ce sondage');
+        return;
+      }
+
       const text = document.getElementById('newQuestionText').value.trim();
       const type = document.getElementById('newQuestionType').value;
 
@@ -175,7 +273,6 @@ console.log('Données du sondage:', data);
 
       questions.push({ text, type, reponses });
 
-
       // Envoyer la mise à jour au backend
       await saveQuestions();
 
@@ -189,6 +286,11 @@ console.log('Données du sondage:', data);
     }
 
     function startEdit(index) {
+      if (!isOwner) {
+        alert('Vous n\'avez pas l\'autorisation de modifier les questions de ce sondage');
+        return;
+      }
+
       editIndex = index;
       document.getElementById('editQuestionText').value = questions[index].text;
       document.getElementById('editQuestionType').value = questions[index].type;
@@ -197,6 +299,11 @@ console.log('Données du sondage:', data);
     }
 
     async function updateQuestion() {
+      if (!isOwner) {
+        alert('Vous n\'avez pas l\'autorisation de modifier les questions de ce sondage');
+        return;
+      }
+
       const text = document.getElementById('editQuestionText').value.trim();
       const type = document.getElementById('editQuestionType').value;
 
@@ -220,6 +327,11 @@ console.log('Données du sondage:', data);
     }
 
     async function deleteQuestion(index) {
+      if (!isOwner) {
+        alert('Vous n\'avez pas l\'autorisation de supprimer les questions de ce sondage');
+        return;
+      }
+
       if (!confirm('Voulez-vous vraiment supprimer cette question ?')) return;
       questions.splice(index, 1);
       await saveQuestions();
@@ -227,6 +339,11 @@ console.log('Données du sondage:', data);
     }
 
     async function saveQuestions() {
+      if (!isOwner) {
+        alert('Vous n\'avez pas l\'autorisation de modifier ce sondage');
+        return;
+      }
+
       try {
         const res = await fetch(`http://localhost:5001/api/sondages/${sondageId}/questions`, {
           method: 'PUT',
